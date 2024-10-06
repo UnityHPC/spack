@@ -9,7 +9,6 @@ from typing import Union
 
 import llnl.util.lang
 from llnl.util.filesystem import mkdirp
-from llnl.util.symlink import symlink
 import llnl.util.tty as tty
 
 import spack.config
@@ -50,11 +49,6 @@ def fetch_cache_location():
     """
     path = spack.config.get("config:source_cache", spack.paths.default_fetch_cache_path)
     return spack.util.path.canonicalize_path(path)
-    # path = spack.config.get("config:source_cache")
-    # if not path:
-    #    path = spack.paths.default_fetch_cache_path
-    # path = spack.util.path.canonicalize_path(path)
-    # return path
 
 
 def _fetch_cache():
