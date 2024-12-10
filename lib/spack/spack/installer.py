@@ -460,6 +460,7 @@ def _process_binary_cache_tarball(
 
     with timer.measure("install"), spack.util.path.filter_padding():
         binary_distribution.extract_tarball(pkg.spec, download_result, force=False, timer=timer)
+        pkg.windows_establish_runtime_linkage()
 
         if pkg.spec.spliced:  # overwrite old metadata with new
             spack.store.STORE.layout.write_spec(
