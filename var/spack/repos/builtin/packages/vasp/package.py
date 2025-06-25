@@ -20,7 +20,7 @@ class Vasp(MakefilePackage, CudaPackage):
     url = "file://{0}/vasp.5.4.4.pl2.tgz".format(os.getcwd())
     maintainers("snehring")
     manual_download = True
-
+    version("6.5.1", sha256="a53fd9dd2a66472a4aa30074dbda44634fc663ea2628377fc01d870e37136f61")
     version("6.4.3", sha256="fe30e773f2a3e909b5e0baa9654032dfbdeff7ec157bc348cee7681a7b6c24f4")
     version("6.3.2", sha256="f7595221b0f9236a324ea8afe170637a578cdd5a837cc7679e7f7812f6edf25a")
     version("6.3.0", sha256="adcf83bdfd98061016baae31616b54329563aa2739573f069dd9df19c2071ad3")
@@ -52,6 +52,13 @@ class Vasp(MakefilePackage, CudaPackage):
         when="+vaspsol",
     )
 
+    resource(
+        name="vtsttools",
+        url="https://theory.cm.utexas.edu/code/vtstcode-209.tgz",
+        sha256="8f88265ab200ba61a3cbae119d05677e2744b5338fb9073ce6d901f38c17774b",
+        when="+vtsttools"
+    )
+
     variant("openmp", default=False, when="@6:", description="Enable openmp build")
 
     variant("scalapack", default=False, when="@:5", description="Enables build with SCALAPACK")
@@ -68,6 +75,15 @@ class Vasp(MakefilePackage, CudaPackage):
     )
     variant("shmem", default=True, description="Enable use_shmem build flag")
     variant("hdf5", default=False, when="@6.2:", description="Enabled HDF5 support")
+    variant(
+        "vtsttools",
+        default=False,
+        when="@6.5.1",
+        description="Enable VASP TST Tools\n"
+        "https://theory.cm.utexas.edu/vtsttools/index.html",
+    )
+
+    patch("vtsttools-6.5.1.patch", when="@6.5.1")
 
     depends_on("rsync", type="build")
     depends_on("blas")
@@ -273,6 +289,10 @@ class Vasp(MakefilePackage, CudaPackage):
         if spec.satisfies("+vaspsol"):
             cpp_options.append("-Dsol_compat")
             copy("VASPsol/src/solvation.F", "src/")
+
+        if spec.satisfies("+vtsttools"):
+            if spec.satisfies("@6.5.1"):
+                copy_tree("vtstcode-209/vtstcode6.5.1", "src")
 
         if spec.satisfies("+hdf5"):
             cpp_options.append("-DVASP_HDF5")
