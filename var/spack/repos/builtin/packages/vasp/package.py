@@ -56,7 +56,7 @@ class Vasp(MakefilePackage, CudaPackage):
         name="vtsttools",
         url="https://theory.cm.utexas.edu/code/vtstcode-209.tgz",
         sha256="8f88265ab200ba61a3cbae119d05677e2744b5338fb9073ce6d901f38c17774b",
-        when="+vtsttools"
+        when="@6.5.1 +vtsttools"
     )
 
     variant("openmp", default=False, when="@6:", description="Enable openmp build")
