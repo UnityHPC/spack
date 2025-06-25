@@ -83,7 +83,7 @@ class Vasp(MakefilePackage, CudaPackage):
         "https://theory.cm.utexas.edu/vtsttools/index.html",
     )
 
-    patch("vtsttools-6.5.1.patch", when="@6.5.1")
+    patch("vtsttools-6.5.1.patch", when="@6.5.1 +vtsttools")
 
     depends_on("rsync", type="build")
     depends_on("blas")
