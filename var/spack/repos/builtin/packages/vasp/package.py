@@ -52,11 +52,19 @@ class Vasp(MakefilePackage, CudaPackage):
         when="+vaspsol",
     )
 
+    # specify exact commit as there is no appropriate tag available
+    resource(
+        name="vaspsolpp",
+        git="https://github.com/VASPsol/VASPsol.git",
+        commit="6626f27",
+        when="@6.3.2 +vaspsolpp",
+    )
+
     resource(
         name="vtsttools",
         url="https://theory.cm.utexas.edu/code/vtstcode-209.tgz",
         sha256="8f88265ab200ba61a3cbae119d05677e2744b5338fb9073ce6d901f38c17774b",
-        when="@6.5.1 +vtsttools"
+        when="@6.5.1,6.3.2 +vtsttools"
     )
 
     variant("openmp", default=False, when="@6:", description="Enable openmp build")
@@ -73,17 +81,28 @@ class Vasp(MakefilePackage, CudaPackage):
         description="Enable VASPsol implicit solvation model\n"
         "https://github.com/henniggroup/VASPsol",
     )
+    variant(
+        "vaspsolpp",
+        default=False,
+        when="@6.3.2",
+        description="Enable VASPsol++ implicit solvation model\n"
+        "https://github.com/VASPSol/VASPsol",
+    )
     variant("shmem", default=True, description="Enable use_shmem build flag")
     variant("hdf5", default=False, when="@6.2:", description="Enabled HDF5 support")
     variant(
         "vtsttools",
         default=False,
-        when="@6.5.1",
+        when="@6.3.2,6.5.1",
         description="Enable VASP TST Tools\n"
         "https://theory.cm.utexas.edu/vtsttools/index.html",
     )
 
     patch("vtsttools-6.5.1.patch", when="@6.5.1 +vtsttools")
+    patch("vtsttools-6.3.2.patch", when="@6.3.2 +vtsttools")
+    patch("vaspsol++-vasp_6.3.2.patch", when="@6.3.2 +vaspsolpp~vtsttools")
+    patch("vaspsol++-vtst-vasp_6.3.2.patch", when="@6.3.2 +vaspsolpp+vtsttools")
+    patch("vaspsol++-remove-intel.patch", when="@6.3.2 +vaspsolpp")
 
     depends_on("rsync", type="build")
     depends_on("blas")
@@ -286,13 +305,15 @@ class Vasp(MakefilePackage, CudaPackage):
                 cflags.extend(["-DGPUSHMEM=300", "-DHAVE_CUBLAS"])
                 filter_file(r"^CUDA_ROOT[ \t]*\?=.*$", spec["cuda"].prefix, make_include)
 
-        if spec.satisfies("+vaspsol"):
+        if spec.satisfies("+vaspsol") or spec.satisfies("+vaspsolpp"):
             cpp_options.append("-Dsol_compat")
             copy("VASPsol/src/solvation.F", "src/")
 
         if spec.satisfies("+vtsttools"):
             if spec.satisfies("@6.5.1"):
                 copy_tree("vtstcode-209/vtstcode6.5.1", "src")
+            elif spec.satisfies("@6.3.2"):
+                copy_tree("vtstcode-209/vtstcode6.3", "src")
 
         if spec.satisfies("+hdf5"):
             cpp_options.append("-DVASP_HDF5")

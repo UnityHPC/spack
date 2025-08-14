@@ -1,0 +1,152 @@
+diff --git a/VASPsol/src/solvation.F b/VASPsol/src/solvation.F
+index 1fba277..ef8fb77 100644
+--- a/VASPsol/src/solvation.F
++++ b/VASPsol/src/solvation.F
+@@ -35,8 +35,6 @@
+ #define ifdsol !
+ #endif
+ 
+-#define ABORT      CALL TRACEBACKQQ; CALL M_exit(); CALL ABORT
+-
+ #define dsol_io ifdsol sol_io
+ 
+ 
+@@ -56,7 +54,6 @@ MODULE solvation_grid
+  USE poscar,  ONLY : type_info
+  USE lattice, ONLY : latt
+  USE mgrid,   ONLY : grid_3d
+- USE IFCORE
+ 
+  IMPLICIT NONE
+  
+@@ -1072,7 +1069,6 @@ MODULE solvation_lpcm
+  USE base
+  USE constant 
+  USE mpimy 
+- USE IFCORE
+  USE solvation_grid
+  
+  IMPLICIT NONE
+@@ -1516,7 +1512,6 @@ MODULE solvation_nlpcm
+  USE base
+  USE constant 
+  USE mpimy 
+- USE IFCORE
+  USE solvation_grid
+  
+  IMPLICIT NONE
+@@ -2355,7 +2350,7 @@ END SUBROUTINE SET_LPB
+  IF (LNLDIEL) THEN
+    ALLOCATE(x0(DIMREAL(GRIDC%MPLWV)))
+    x0 = PBETA*E_loc(:,4)
+-   CALL fzero_vec(F_floc, a, b, tol, f_loc, x0)
++   CALL fzero_vec(a, b, tol, f_loc, x0)
+  ELSE
+    f_loc = 1._q/(1._q - (alpha_pol+alpha0_rot)*invalpha_sic)
+  ENDIF
+@@ -2363,24 +2358,6 @@ END SUBROUTINE SET_LPB
+  DO I = 1,4
+    E_loc(:,I) = f_loc*E_loc(:,I)
+  END DO
+-
+- 
+-CONTAINS
+-
+-
+-ELEMENTAL REAL(q) FUNCTION F_floc(f_loc, x0)
+- REAL(q), INTENT(IN) :: f_loc, x0
+- REAL(q) :: x, g_rot
+- x = f_loc*x0
+- ! g_rot has relative fp error of 1e-8
+- IF (x < 2e-4_q) THEN
+-   g_rot = 1._q
+- ELSE
+-   g_rot = 3._q*(x-TANH(x))/(x**2*TANH(x))
+- ENDIF
+- F_floc = 1._q /(1._q - (g_rot*alpha0_rot + alpha_pol)*invalpha_sic) - f_loc  
+-END FUNCTION F_floc
+- 
+  
+ END SUBROUTINE SOLVE_E_LOC
+ 
+@@ -2390,20 +2367,13 @@ END SUBROUTINE SOLVE_E_LOC
+ !! Uses Brent's method - adapted from:
+ !!       https://people.math.sc.edu/Burkardt/f_src/brent/brent.f90
+ !!============================================================================
+-SUBROUTINE fzero_vec(f, a0, b0, tol, x, x0)
++SUBROUTINE fzero_vec(a0, b0, tol, x, x0)
+  
+  USE prec
+  
+  REAL(q), INTENT(IN)  :: a0, b0, tol, x0(:)
+  REAL(q), INTENT(OUT) :: x(:)
+  
+- INTERFACE
+-   ELEMENTAL REAL(q) FUNCTION f(x, x0)
+-   USE prec
+-      REAL(q), INTENT(IN) :: x, x0
+-   END FUNCTION f
+- END INTERFACE
+- 
+  REAL(q), ALLOCATABLE :: a(:), b(:), c(:), d(:), e(:), m(:), p(:), r(:), s1(:), s2(:), s3(:), fa(:), fb(:), fc(:)
+  REAL(q), ALLOCATABLE :: tol_abs(:)
+  
+@@ -2425,8 +2395,8 @@ SUBROUTINE fzero_vec(f, a0, b0, tol, x, x0)
+  
+  a  = a0
+  b  = b0
+- fa = f(a, x0)
+- fb = f(b, x0)
++ fa = calc_F(a, x0)
++ fb = calc_F(b, x0)
+  
+  !IF ( ANY( ((fa>0._q).AND.(fb>0._q)) .OR. ((fa<0._q).AND.(fb<0._q)) ) ) THEN
+  !  ABORT
+@@ -2509,12 +2479,28 @@ SUBROUTINE fzero_vec(f, a0, b0, tol, x, x0)
+    ! Next point
+    a = b; fa = fb
+    b = b + SIGN( MAX(ABS(d), tol_abs), m )
+-   fb = f(b, x0)
++   fb = calc_F(b, x0)
+    
+  ENDDO
+  
+  x = b
+  
++CONTAINS
++
++ FUNCTION calc_F(f_loc, x0) RESULT(F)
++   REAL(q), INTENT(IN) :: f_loc(:), x0(:)
++   REAL(q) :: F(SIZE(x0))
++   REAL(q) :: x(SIZE(x0)), g_rot(SIZE(x0))
++   x = f_loc*x0
++   ! g_rot has relative fp error of 1e-8
++   WHERE (x < 2e-4_q)
++      g_rot = 1._q
++   ELSEWHERE
++      g_rot = 3._q*(x-TANH(x))/(x**2*TANH(x))
++   ENDWHERE
++   F = 1._q /(1._q - (g_rot*alpha0_rot + alpha_pol)*invalpha_sic) - f_loc  
++ END FUNCTION calc_F
++ 
+ END SUBROUTINE fzero_vec
+ 
+ 
+@@ -3432,7 +3418,7 @@ END SUBROUTINE update_NELECT
+ !! check if Fermi level is converged for constant potential calculation
+ !!
+ !!====================================================================
+-PURE FUNCTION check_EFERMI(EFERMI)
++FUNCTION check_EFERMI(EFERMI)
+  
+  LOGICAL :: check_EFERMI
+  REAL(q), INTENT(IN) :: EFERMI
+@@ -3447,7 +3433,7 @@ END FUNCTION check_EFERMI
+ !! Constant potential calculation?
+ !!
+ !!====================================================================
+-PURE FUNCTION L_const_pot
++FUNCTION L_const_pot()
+  LOGICAL :: L_const_pot
+  L_const_pot = (EFERMI_ref < 0._q)
+ END FUNCTION L_const_pot
